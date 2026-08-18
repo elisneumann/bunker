@@ -1,8 +1,18 @@
 import random
 
+class Colors:
+  RESET = "\033[0m"
+  RED = "\033[91m"
+  GREEN = "\033[92m"
+  YELLOW = "\033[93m"
+  CYAN = "\033[96m"
+  STRIKE = "\033[9m"
+  BOLD = "\033[1m"
+
 names = [
     "Marcus", "Elena", "Silver", "Sarah", "Javier",
-    "Chloe", "Arthur", "Klaus", "Sam", "Nadia", "Leon"
+    "Chloe", "Arthur", "Klaus", "Sam", "Nadia", "Leon", "Rebecca",
+    "Simon", "Ellie", "Ryan"
 ]
 
 inventories = [
@@ -99,6 +109,7 @@ def menu():
             case "3":
                 break
             case _:
+                print("Invalid input. Try again!")
                 continue
 
 def generate_new_visitor():
@@ -165,8 +176,8 @@ def make_decision_about_entry(visitor):
         else:
             print("What will you do?\n")
             print("1. Do a checkup (Recommended!)\n"
-                  "2. Allow entry\n"
-                  "3. Deny entry")
+                  f"{Colors.GREEN}2. Allow entry{Colors.RESET}\n"
+                  f"{Colors.RED}3. Deny entry{Colors.RESET}")
 
         match input(">> "):
             case "1":
@@ -188,7 +199,20 @@ def make_decision_about_entry(visitor):
 
                 else:
                     print(f"{visitor['Name']} enters the bunker. May this soul find peace here...\n")
+
+                if visitor["Inventory"]["type"] == "Food":
+                    bunker_state["Food"] += visitor["Inventory"]["amount"]
+                    print(f"Food units: +{visitor['Inventory']['amount']}")
+
+                elif visitor["Inventory"]["type"] == "Meds":
+                    bunker_state["Meds"] += visitor['Inventory']['amount']
+                    print(f"Medicine units: +{visitor['Inventory']['amount']}")
+
+                else:
+                    print("This newcomer didn't have anything in the bag...")
+
                 return visitor
+
             case "3":
                 if not checkup_done:
                     print(
@@ -198,11 +222,14 @@ def make_decision_about_entry(visitor):
                         f"{visitor['Name']} sighed heavily, leaving the gates. Hope this soul finds peace elsewhere...\n")
                 return None
             case _:
+                print("Invalid input. Try again!")
                 continue
 
-def morning(people):
+def morning():
+    global next_person_id
 
     approved_visitors = []
+
     time_phases = [
         "It's still pretty early... Yet, you see somebody approaching.\n"
         "This is our first visitor for today:",
@@ -228,37 +255,252 @@ def morning(people):
 
             hidden_keys = ["Condition"]
 
-            person_id = len(people) + 1
+            person_id = next_person_id
             people[person_id] = {}
 
             for key, value in accepted_visitor.items():
                 if key not in hidden_keys:
                     people[person_id][key] = value
 
+            next_person_id += 1
+
     print("That's it for today. We shall close the gates for the upcoming night...")
     return approved_visitors
 
 def evening():
+
+    while True:
+        print("It's evening. Time to check the state of our bunker.\nWhat would you like to do first?")
+        print("1. Do checkups\n"
+              "2. Check air filter condition\n"
+              "3. Check morality level\n"
+              "4. Skip evening routine\n")
+
+        match input(">> "):
+            case "1":
+                checkups_management()
+            case "2":
+                check_air_filter()
+            case "3":
+                check_morality_level()
+            case "4":
+                day_results()
+                break
+            case _:
+                print("Invalid input. Try again!")
+                continue
+
+
+def checkups_management():
+
+    while True:
+        print("You entered the medical wing of our bunker.\nEven though you were cautious enough near the gates, it wouldn't hurt to check on our people again. ")
+        print("Who would you like to check on?")
+        print("1. Undiagnosed people\n"
+              "2. Infected people\n"
+              "3. Go back")
+
+        match input(">> "):
+            case "1":
+                check_undiagnosed()
+            case "2":
+                check_infected()
+            case "3":
+                return None
+            case _:
+                print("Invalid input. Try again!")
+                continue
+
+def check_infected():
     ...
 
+def print_morality_level(sign, amount):
 
-def start_game():
+    print(f"[!] Morality level: {sign}{amount}% (Current: {bunker_state['Morality level']}%)")
 
-    bunker_state = {
-        "Food": 20,
-        "Meds": 3,
-        "Infected people": 0,
-        "Air filter condition": 100,
-    }
 
-    people = {}
+def check_undiagnosed():
 
-    day = 1
+    print("Now now... Let's see if you were careless.")
+
+    has_undiagnosed = any(not person["Diagnosed?"] for person in people.values())
+    undiagnosed_people = []
+
+    if not has_undiagnosed:
+        print("Don't worry. You already know if anybody is infected. No need to be here.")
+        return True
+
+    print("Seems like you weren't careful enough with your checkups... Somebody's condition is still unknown:")
+
+    for p_id, person in people.items():
+        if not person["Diagnosed?"]:
+            print(f"ID {p_id}: {person['Name']}")
+            undiagnosed_people.append((p_id, person["Name"], person['Is infected?']))
+
+    infected_people = []
+    while True:
+
+        print("What shall you do?")
+        print("1. Do overall checkup (For all)\n"
+              "2. Do personal checkup (Choose person)\n"
+              "3. Leave")
+
+        match input(">> "):
+            case "1":
+
+                if any(patient[2] == True for patient in undiagnosed_people):
+
+                    print("Oh no! We have infected people in our bunker! That shouldn't have happened at all...")
+                    for patient in undiagnosed_people:
+                        if patient[2]:
+                            print(f"{patient[1]} turned out to be infected!")
+                            infected_people.append(patient[0])
+
+                    for p_id, person in people.items():
+                        if not person["Diagnosed?"]:
+                            person["Diagnosed?"] = True
+
+                    undiagnosed_infected(infected_people)
+
+                    return True
+
+                else:
+
+                    print("Everyone seems healthy and content.")
+                    for p_id, person in people.items():
+                        if not person["Diagnosed?"]:
+                            person["Diagnosed?"] = True
+
+                    return True
+            case "2":
+
+                print("\nYou got interested in someone in particular. Who will you run your tests on?\n")
+
+                available_ids = [p_id for p_id, person in people.items() if not person["Diagnosed?"]]
+
+                if not available_ids:
+                    print("Everyone has already been diagnosed!")
+                    continue
+
+                for p_id in available_ids:
+                    print(f"ID {p_id}. {people[p_id]['Name']}")
+
+                choice = input("\nEnter person's ID (or '0' to go back): ")
+
+                if choice == "0":
+                    continue
+
+                if not choice.isdigit():
+                    print(f"{Colors.RED}Invalid input! Please enter a valid numerical ID.{Colors.RESET}")
+                    continue
+
+                target_id = int(choice)
+
+                if target_id not in available_ids:
+                    print(f"{Colors.RED}No undiagnosed person found with ID {target_id}.{Colors.RESET}")
+                    continue
+
+                person = people[target_id]
+                person["Diagnosed?"] = True
+
+                print(f"\nRunning tests on {person['Name']}...")
+
+                if person["Is infected?"]:
+                    print(f"{Colors.RED}[!] WARNING! {person['Name']} turned out to be INFECTED!{Colors.RESET}")
+                    undiagnosed_infected([target_id])
+                else:
+                    print(f"{Colors.GREEN}[+] Good news! {person['Name']} is completely healthy.{Colors.RESET}\n")
+
+                return True
+
+
+
+def undiagnosed_infected(infected_people):
+    
+    count = len(infected_people)
+
+    expel_penalty = count * 5
+    cure_bonus = count * 5
+
+    print("You shall decide what happens now. Your choice will have consequences.")
+    while True:
+
+        print(f"1. Give meds ({bunker_state['Meds']} medicine units available)\n"
+              f"2. Expel from the bunker [!]")
+
+        match input(">> "):
+            case "1":
+                print("Giving medicine to the infected will cure them. Usage: one medicine unit per person.")
+
+                if bunker_state["Meds"] >= len(infected_people):
+
+                    for p_id, person in people.items():
+                       if p_id in infected_people:
+                            bunker_state["Meds"] -= 1
+                            person["Is infected?"] = False
+                            print(f"{person['Name']} is now cured! (-1 medicine unit)")
+
+                    bunker_state["Morality level"] += cure_bonus
+                    print_morality_level("+", cure_bonus)
+                    break
+
+                else:
+                    print("Not enough meds in stock. Consider choosing another option")
+                    continue
+            case "2":
+                print("Hold on! Expelling infected people from the bunker will affect you morality level! (-15%)\nAre you sure you want to do that?")
+                print("1. No (Go back)\n2. Yes (Expel)")
+
+                choice = input(">> ")
+
+                if choice == "1":
+                    print("You hesitated... The survivors noticed your dark intention and felt a chill.")
+                    bunker_state["Morality level"] -= 5
+                    print_morality_level("-", 5)
+
+                    print(bunker_state)
+                    continue
+
+                elif choice == "2":
+
+                    print("You made your choice... You could hear the judgement in the air. The infected felt nothing but misery as they left.")
+                    print("Today was a really grim day.")
+
+                    for p_id in infected_people:
+                        del people[p_id]
+
+                    bunker_state["Morality level"] -= expel_penalty
+                    print_morality_level("-", expel_penalty)
+
+                    print(bunker_state)
+                    return True
+
+                else:
+                    print("Invalid input. Try again!")
+                    continue
+
+
+def check_air_filter():
+    ...
+
+def check_morality_level():
+    ...
+
+def day_results():
+    print("Now that was an interesting day, wasn't it? Time to see what we've got")
+    print("Resource Yield:")
+    print("Resource Drain:")
+
+def start_new_day():
+
+    global day
+    day += 1
+
 
     print(f"Day {day}\n"
           f"New day brings new people to these gates... You shall determine their destiny.\n")
 
-    new_visitors = morning(people)
+    new_visitors = morning()
 
     if not new_visitors and not people:
         print("Returning to the bunker, you could only hear filters humming. You're alone in this place.")
@@ -272,7 +514,27 @@ def start_game():
     print(new_visitors)
     print(people)
 
-    print("It's evening. Time to check the state of our bunker.\nWhat would you like to do first?")
     evening()
+
+
+bunker_state = {
+        "Food": 20,
+        "Meds": 0,
+        "Infected people": 0,
+        "Air filter condition": 100,
+        "Morality level": 30
+    }
+people = {}
+day = 0
+
+people_expelled = 0
+meds_used = 0
+
+next_person_id = 1
+
+def start_game():
+    while True:
+        start_new_day()
+
 
 menu()
