@@ -16,8 +16,8 @@ names = [
 ]
 
 inventories = [
-    {"type": "Food", "amount": 10},
-    {"type": "Food", "amount": 25},
+    {"type": "Food", "amount": 5},
+    {"type": "Food", "amount": 3},
     {"type": "Meds", "amount": 2},
     {"type": "Meds", "amount": 5},
     {"type": "None", "amount": 0},
@@ -165,7 +165,7 @@ def print_info_about_checkup(condition, name):
     print()
 
 
-def make_decision_about_entry(visitor):
+def make_decision_about_entry(visitor, resources):
     checkup_done = False
 
     while True:
@@ -205,14 +205,22 @@ def make_decision_about_entry(visitor):
                 if visitor["Inventory"]["type"] == "Food":
                     bunker_state["Food"] += visitor["Inventory"]["amount"]
                     print(f"Food units: +{visitor['Inventory']['amount']}")
+                    resources["Food found"] += visitor["Inventory"]["amount"]
 
                 elif visitor["Inventory"]["type"] == "Meds":
                     bunker_state["Meds"] += visitor['Inventory']['amount']
                     print(f"Medicine units: +{visitor['Inventory']['amount']}")
+                    resources["Meds found"] += visitor["Inventory"]["amount"]
+
+                elif visitor["Inventory"]["type"] == "Tools":
+                    bunker_state["Tools"] += visitor['Inventory']['amount']
+                    print(f"Tools: +{visitor['Inventory']['amount']}")
+                    resources["Tools found"] += visitor["Inventory"]["amount"]
 
                 else:
                     print("This newcomer didn't have anything in the bag...")
 
+                resources["Approved people"] += 1
                 return visitor
 
             case "3":
@@ -227,7 +235,7 @@ def make_decision_about_entry(visitor):
                 print("Invalid input. Try again!")
                 continue
 
-def morning():
+def morning(resources):
     global next_person_id
 
     approved_visitors = []
@@ -250,7 +258,7 @@ def morning():
 
         print(f"{visitor['Name']} says: {story}")
 
-        accepted_visitor = make_decision_about_entry(visitor)
+        accepted_visitor = make_decision_about_entry(visitor, resources)
 
         if accepted_visitor is not None:
             approved_visitors.append(accepted_visitor)
@@ -265,11 +273,12 @@ def morning():
                     people[person_id][key] = value
 
             next_person_id += 1
+            people[person_id]["Days infected"] = 1 if accepted_visitor["Is infected?"] else 0
 
     print("That's it for today. We shall close the gates for the upcoming night...")
     return approved_visitors
 
-def evening():
+def evening(resources):
 
     print("It's evening. Time to check the state of our bunker.")
 
@@ -282,20 +291,21 @@ def evening():
 
         match input(">> "):
             case "1":
-                checkups_management()
+                checkups_management(resources)
             case "2":
-                check_air_filter()
+                check_air_filter(resources)
             case "3":
                 check_morality_level()
+                continue
             case "4":
-                day_results()
+                day_results(resources)
                 break
             case _:
                 print("Invalid input. Try again!")
                 continue
 
 
-def checkups_management():
+def checkups_management(resources):
     print("You entered the medical wing of our bunker.\nEven though you were cautious enough near the gates, it wouldn't hurt to check on our people again. ")
 
     while True:
@@ -306,16 +316,16 @@ def checkups_management():
 
         match input(">> "):
             case "1":
-                check_undiagnosed()
+                check_undiagnosed(resources)
             case "2":
-                check_infected()
+                check_infected(resources)
             case "3":
                 return None
             case _:
                 print("Invalid input. Try again!")
                 continue
 
-def check_infected():
+def check_infected(resources):
 
     infected_people = [p_id for p_id, person in people.items() if person["Diagnosed?"] and person["Is infected?"]]
 
@@ -330,7 +340,7 @@ def check_infected():
         for p_id in infected_people:
             print(f"ID {p_id}. {people[p_id]['Name']}")
 
-        return make_decision_about_infected(infected_people)
+        return make_decision_about_infected(infected_people, resources)
 
     else:
         have_undiagnosed = any(not person["Diagnosed?"] for person in people.values())
@@ -349,7 +359,10 @@ def print_morality_level(sign, amount):
     else:
         print(f"{Colors.GREEN}[!] Morality level: {sign}{amount}% (Current: {bunker_state['Morality level']}%) {Colors.RESET}")
 
-def check_undiagnosed():
+    if bunker_state['Morality level'] <= 0:
+        check_for_loss()
+
+def check_undiagnosed(resources):
 
     print("Now now... Let's see if you were careless.")
 
@@ -387,7 +400,7 @@ def check_undiagnosed():
                     for p_id in all_infected:
                         print(f"- {people[p_id]['Name']} is infected!")
 
-                    make_decision_about_infected(all_infected)
+                    make_decision_about_infected(all_infected, resources)
                 else:
                     print(f"\n{Colors.GREEN}Everyone seems healthy and content.{Colors.RESET}")
                     return True
@@ -430,7 +443,7 @@ def check_undiagnosed():
 
                     all_known_infected = [p_id for p_id, p in people.items() if p["Diagnosed?"] and p["Is infected?"]]
 
-                    make_decision_about_infected(all_known_infected)
+                    make_decision_about_infected(all_known_infected, resources)
                 else:
                     print(f"{Colors.GREEN}[+] Good news! {person['Name']} is completely healthy.{Colors.RESET}\n")
 
@@ -442,7 +455,7 @@ def check_undiagnosed():
                 continue
 
 
-def make_decision_about_infected(infected_people):
+def make_decision_about_infected(infected_people, resources):
     global penalty_for_expelling
 
     count = len(infected_people)
@@ -472,7 +485,9 @@ def make_decision_about_infected(infected_people):
                        if p_id in infected_people:
                             bunker_state["Meds"] -= 1
                             person["Is infected?"] = False
+                            person["Days infected"] = 0
                             print(f"{Colors.GREEN}{person['Name']} is now cured! (-1 medicine unit){Colors.RESET}")
+                            resources["Meds spent"] += 1
 
                     bunker_state["Morality level"] += cure_bonus
                     print_morality_level("+", cure_bonus)
@@ -530,6 +545,7 @@ def make_decision_about_infected(infected_people):
                     print("Still, the gates closed behind the goner with a loud thud.")
 
                     people.pop(target_id, None)
+                    resources["People expelled"] += 1
                     infected_people.remove(target_id)
 
                     bunker_state["Morality level"] -= 5
@@ -569,6 +585,7 @@ def make_decision_about_infected(infected_people):
 
                     for p_id in infected_people:
                         people.pop(p_id, None)
+                        resources["People expelled"] += 1
 
                     infected_people.clear()
 
@@ -586,7 +603,8 @@ def make_decision_about_infected(infected_people):
                 print("Invalid input. Try again!")
                 continue
 
-def check_air_filter():
+
+def check_air_filter(resources):
     print("\nThe air filters hummed ceaselessly overhead. It would be bad if they broke down, wouldn't it? Should check them.")
 
     while True:
@@ -611,24 +629,25 @@ def check_air_filter():
                 if bunker_state['Air filter condition'] > 80:
                     print("Filters are already in perfect condition!")
                 else:
-                    repair_with_tools()
+                    repair_with_tools(resources)
             case "2":
                 if bunker_state['Air filter condition'] > 80:
                     print("Filters are already in perfect condition!")
                 else:
-                    repair_with_mechanic()
+                    repair_with_mechanic(resources)
             case "3":
                 return True
             case _:
                 print("Invalid input. Try again!")
 
-def repair_with_tools():
+def repair_with_tools(resources):
 
     if bunker_state['Tools'] == 0:
         print("You can't fix air filters with tools. You don't have any. Some newcomers might bring them, if you're lucky...")
         return False
     else:
         bunker_state['Tools'] -= 1
+        resources["Tools spent"] += 1
         bunker_state['Air filter condition'] = min(100, bunker_state['Air filter condition'] + 15)
         print("Phew... Now that should be easier to breathe in our bunker!")
 
@@ -637,7 +656,7 @@ def repair_with_tools():
 
 mechanic_used_today = False
 
-def repair_with_mechanic():
+def repair_with_mechanic(resources):
     global mechanic_used_today
     have_mechanic = any(person["Role"] == 'Mechanic' for person in people.values())
 
@@ -654,25 +673,85 @@ def repair_with_mechanic():
     print(f"{Colors.GREEN}The mechanic worked their magic! Current filter condition: {bunker_state['Air filter condition']}%{Colors.RESET}")
     return True
 
-def check_morality_level():
-    ...
 
-def day_results():
+def check_morality_level():
+    current_morality = bunker_state["Morality level"]
+
+    print("\n--- MORALITY STATUS REPORT ---")
+    print(f"Current Morality Level: {current_morality}%")
+
+    if current_morality >= 80:
+        print(
+            f"{Colors.GREEN}The atmosphere in the bunker is inspiring. People trust your leadership unconditionally.{Colors.RESET}")
+    elif current_morality >= 50:
+        print(
+            f"{Colors.GREEN}The mood is steady. People have their doubts, but overall they accept your decisions.{Colors.RESET}")
+    elif current_morality >= 25:
+        print(
+            f"{Colors.YELLOW}WARNING! Whispers of discontent are spreading through the corridors. Be careful with your choices!{Colors.RESET}")
+    else:
+        print(
+            f"{Colors.RED}ALARM! The survivors are on the verge of mutiny! One more wrong step and they will throw you out!{Colors.RESET}")
+
+    print("-" * 30 + "\n")
+
+def day_results(resources):
+    resources["Food spent"] += len(people)
+    bunker_state["Food"] -= len(people)
+    bunker_state["Air filter condition"] -= 15
+
     print("Now that was an interesting day, wasn't it? Time to see what we've got")
-    print("Resource Yield:")
-    print("Resource Drain:")
+    print(f"DAY {day} RESULTS:")
+
+    print("-"*10)
+
+    print(f"{Colors.BOLD}Resource Yield:{Colors.RESET}")
+    for key, value in resources.items():
+        if "Approved" in key or "found" in key:
+            print(f"{Colors.GREEN}{key}: {value}{Colors.RESET}")
+
+    print("-"*10)
+
+    print(f"{Colors.BOLD}Resource Drain:{Colors.RESET}")
+    for key, value in resources.items():
+        if "Expelled" in key or "spent" in key:
+            print(f"{Colors.RED}{key}: {value}{Colors.RESET}")
+
+    print("-"*10)
+
+    print("Current bunker state:")
+    for key, value in bunker_state.items():
+        print(f"{key}: {value}")
 
 def start_new_day():
 
-    global day, penalty_for_expelling
+    global day, penalty_for_expelling, mechanic_used_today
     penalty_for_expelling = True
+    mechanic_used_today = False
     day += 1
 
+    if check_for_loss():
+        return True
 
-    print(f"Day {day}\n"
-          f"New day brings new people to these gates... You shall determine their destiny.\n")
+    for person in people.values():
+        if person.get("Is infected?", False):
+            person["Days infected"] = person.get("Days infected", 0) + 1
 
-    new_visitors = morning()
+    resources = {
+        "Approved people": 0,
+        "Expelled people": 0,
+        "Meds found": 0,
+        "Meds spent": 0,
+        "Food found": 0,
+        "Food spent":  0,
+        "Tools found": 0,
+        "Tools spent": 0
+    }
+
+    print(f"\n=== DAY {day} / 10 ===")
+    print("New day brings new people to these gates... You shall determine their destiny.\n")
+
+    new_visitors = morning(resources)
 
     if not new_visitors and not people:
         print("Returning to the bunker, you could only hear filters humming. You're alone in this place.")
@@ -683,17 +762,49 @@ def start_new_day():
     else:
         print(f"Walking past the common room, you saw {len(new_visitors)} new people sitting on the sofa. They were having a nice talk.")
 
-    print(new_visitors)
-    print(people)
+    evening(resources)
 
-    evening()
+    if check_for_loss():
+        return True
 
+    return False
+
+def check_for_loss():
+
+    if day > 10:
+        print(f"\n{Colors.GREEN}{Colors.BOLD}--- VICTORY! YOU SURVIVED 10 DAYS! ---{Colors.RESET}")
+        print("You managed to maintain order, manage resources, and keep everyone safe.")
+        print("Rescue teams have reached Bunker-42. You won!")
+        return True
+
+    if bunker_state["Morality level"] <= 0:
+        print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER! ---{Colors.RESET}")
+        print("The people rose up against you and expelled you. Now, there is nothing but wasteland around you...")
+        return True
+
+    if bunker_state["Food"] <= 0:
+        print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER! ---{Colors.RESET}")
+        print("Food supplies were completely exhausted. The people in the bunker died of starvation...")
+        return True
+
+    if bunker_state["Air filter condition"] <= 0:
+        print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER ---{Colors.RESET}")
+        print("The air filters failed completely. The bunker filled with toxic gas...")
+        return True
+
+    for p_id, person in people.items():
+        if person.get("Is infected?", False) and person.get("Days infected", 0) > 4:
+            print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER ---{Colors.RESET}")
+            print(f"{person['Name']} had the infection for too long (> 4 days).")
+            print("The virus evolved and rapidly infected the entire bunker. No survivors remained...")
+            return True
+
+    return False
 
 bunker_state = {
-        "Food": 20,
+        "Food": 15,
         "Meds": 3,
         "Tools": 2,
-        "Infected people": 0,
         "Air filter condition": 100,
         "Morality level": 30
     }
@@ -709,8 +820,31 @@ meds_used = 0
 next_person_id = 1
 
 def start_game():
+    reset_game()
     while True:
-        start_new_day()
+        game_over = start_new_day()
+        if game_over:
+            break
+
+def reset_game():
+    global bunker_state, penalty_for_expelling, people, day
+    global people_expelled, meds_used, next_person_id, mechanic_used_today
+
+    bunker_state = {
+        "Food": 15,
+        "Meds": 3,
+        "Tools": 2,
+        "Air filter condition": 100,
+        "Morality level": 30
+    }
+
+    penalty_for_expelling = True
+    people = {}
+    day = 0
+    people_expelled = 0
+    meds_used = 0
+    next_person_id = 1
+    mechanic_used_today = False
 
 
 menu()
