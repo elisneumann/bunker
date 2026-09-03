@@ -128,6 +128,15 @@ def read_rules():
         print("  the survivors revolt. Game over - unless you have a")
         print("  Policeman on hand, who has a chance to calm things down.")
 
+        print(f"\n{Colors.BOLD}REPUTATION{Colors.RESET}")
+        print("  Reflects how the wasteland outside sees your gate.")
+        print("  Accepting visitors raises it slowly; denying them lowers")
+        print("  it, and denying someone without a checkup to justify it")
+        print("  costs the most. Let it fall below 30% and you'll be")
+        print("  locked out of denying entry entirely, unless a checkup")
+        print("  shows the visitor is SEVERE or CRITICAL. Hit 0% and")
+        print("  raiders, tired of being turned away, storm the gates.")
+
         print(f"\n{Colors.BOLD}INFECTION{Colors.RESET}")
         print("  Checkups reveal a visitor's or resident's infection risk")
         print("  and status (CLEAR / MILD / SEVERE / CRITICAL). Once someone")
@@ -150,6 +159,7 @@ def read_rules():
         print(f"  {Colors.RED}- Air filter condition reaches 0{Colors.RESET}")
         print(f"  {Colors.RED}- Morality level reaches 0 (and no Policeman saves you){Colors.RESET}")
         print(f"  {Colors.RED}- Someone stays infected for more than 4 days{Colors.RESET}")
+        print(f"  {Colors.RED}- Reputation reaches 0{Colors.RESET}")
 
         print(f"\n{Colors.GREEN}{Colors.BOLD}Survive Day 10 and rescue arrives. Good luck, commander.{Colors.RESET}")
         print("-" * 15 + "\n")
