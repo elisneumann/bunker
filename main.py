@@ -231,11 +231,19 @@ def print_info_about_visitor(visitor):
 
 def print_info_about_checkup(condition, name):
 
+    status_colors = {
+        "CLEAR": Colors.GREEN,
+        "MILD": Colors.YELLOW,
+        "SEVERE": Colors.RED,
+        "CRITICAL": Colors.RED + Colors.BOLD
+    }
+    status_color = status_colors.get(condition["status"], "")
+
     print()
 
     print(f"Let's see what we've got here... {name} {condition['text']}")
     print(f"Risk of infection: {condition['infection_chance']}%")
-    print(f"Status: {condition['status']}")
+    print(f"Status: {status_color}{condition['status']}{Colors.RESET}")
 
     print()
 
@@ -289,17 +297,17 @@ def make_decision_about_entry(visitor, resources):
 
                 if visitor["Inventory"]["type"] == "Food":
                     bunker_state["Food"] += visitor["Inventory"]["amount"]
-                    print(f"Food units: +{visitor['Inventory']['amount']}")
+                    print(f"{Colors.GREEN}Food units: +{visitor['Inventory']['amount']}{Colors.RESET}")
                     resources["Food found"] += visitor["Inventory"]["amount"]
 
                 elif visitor["Inventory"]["type"] == "Meds":
                     bunker_state["Meds"] += visitor['Inventory']['amount']
-                    print(f"Medicine units: +{visitor['Inventory']['amount']}")
+                    print(f"{Colors.GREEN}Medicine units: +{visitor['Inventory']['amount']}{Colors.RESET}")
                     resources["Meds found"] += visitor["Inventory"]["amount"]
 
                 elif visitor["Inventory"]["type"] == "Tools":
                     bunker_state["Tools"] += visitor['Inventory']['amount']
-                    print(f"Tools: +{visitor['Inventory']['amount']}")
+                    print(f"{Colors.GREEN}Tools: +{visitor['Inventory']['amount']}{Colors.RESET}")
                     resources["Tools found"] += visitor["Inventory"]["amount"]
 
                 else:
@@ -321,11 +329,11 @@ def make_decision_about_entry(visitor, resources):
                 if not checkup_done:
                     print(
                         f"{visitor['Name']} got desperate, asking for a checkup, but you seem to be in a bad mood today...\n")
-                    rep_penalty = 8
+                    rep_penalty = 5
                 else:
                     print(
                         f"{visitor['Name']} sighed heavily, leaving the gates. Hope this soul finds peace elsewhere...\n")
-                    rep_penalty = 3 if condition_status in ("SEVERE", "CRITICAL") else 6
+                    rep_penalty = 3 if condition_status in ("SEVERE", "CRITICAL") else 4
 
                 bunker_state["Reputation"] -= rep_penalty
                 print_reputation_level("-", rep_penalty)
@@ -430,7 +438,7 @@ def check_infected(resources):
     infected_people = [p_id for p_id, person in people.items() if person["Diagnosed?"] and person["Is infected?"]]
 
     if infected_people:
-        print("How come we have infected people roaming without attention here? That wouldn't do...\n")
+        print(f"{Colors.YELLOW}How come we have infected people roaming without attention here? That wouldn't do...{Colors.RESET}\n")
 
         if len(infected_people) == 1:
             print("You could see one unlucky soul:")
@@ -446,9 +454,9 @@ def check_infected(resources):
         have_undiagnosed = any(not person["Diagnosed?"] for person in people.values())
 
         if have_undiagnosed:
-            print("Lucky we are! We don't have any infected people in our bunker... Or do we?")
+            print(f"{Colors.GREEN}Lucky we are! We don't have any infected people in our bunker... Or do we?{Colors.RESET}")
         else:
-            print("Lucky we are! We don't have any infected people in our bunker. Might as well celebrate it.")
+            print(f"{Colors.GREEN}Lucky we are! We don't have any infected people in our bunker. Might as well celebrate it.{Colors.RESET}")
         return True
 
 
@@ -471,7 +479,7 @@ def check_undiagnosed(resources):
         print(f"{Colors.GREEN}Don't worry. You already know if anybody is infected. No need to be here.{Colors.RESET}")
         return True
 
-    print("Seems like you weren't careful enough with your checkups... Somebody's condition is still unknown:")
+    print(f"{Colors.YELLOW}Seems like you weren't careful enough with your checkups... Somebody's condition is still unknown:{Colors.RESET}")
 
     for p_id, person in people.items():
         if not person["Diagnosed?"]:
@@ -496,7 +504,7 @@ def check_undiagnosed(resources):
                 if all_infected:
                     print(f"\n{Colors.RED}Oh no! We have infected people in our bunker!{Colors.RESET}")
                     for p_id in all_infected:
-                        print(f"- {people[p_id]['Name']} is infected!")
+                        print(f"{Colors.RED}- {people[p_id]['Name']} is infected!{Colors.RESET}")
 
                     make_decision_about_infected(all_infected, resources)
                 else:
@@ -510,7 +518,7 @@ def check_undiagnosed(resources):
                 available_ids = [p_id for p_id, person in people.items() if not person["Diagnosed?"]]
 
                 if not available_ids:
-                    print("Everyone has already been diagnosed!")
+                    print(f"{Colors.GREEN}Everyone has already been diagnosed!{Colors.RESET}")
                     continue
 
                 for p_id in available_ids:
@@ -561,7 +569,7 @@ def make_decision_about_infected(infected_people, resources):
     expel_penalty = count * 5
     cure_bonus = count * 5
 
-    print("You shall decide what happens now. Remember: your choice will have consequences.")
+    print(f"{Colors.YELLOW}You shall decide what happens now. Remember: your choice will have consequences.{Colors.RESET}")
     while True:
 
         if not infected_people:
@@ -580,8 +588,8 @@ def make_decision_about_infected(infected_people, resources):
                 have_medic = any(person["Role"] == 'Doctor' for person in people.values())
 
                 if have_medic and random.randint(0,100) < 40:
-                    print("Just as you were about to give the medicine, a doctor showed up.")
-                    print("It turned out he had some in his first aid kit. You've wasted no medicine tonight, yet the patients were still cured!")
+                    print(f"{Colors.GREEN}Just as you were about to give the medicine, a doctor showed up.{Colors.RESET}")
+                    print(f"{Colors.GREEN}It turned out he had some in his first aid kit. You've wasted no medicine tonight, yet the patients were still cured!{Colors.RESET}")
 
                     for p_id, person in people.items():
                        if p_id in infected_people:
@@ -609,7 +617,7 @@ def make_decision_about_infected(infected_people, resources):
 
                     if have_nurse and random.randint(0, 100) < 60:
                         print("Tending to people's health isn't always easy and painless... Luckily, we've got a nurse in our bunker.")
-                        print("A professional's hand lifted up the spirits of the ill. The nurse knows the deed.")
+                        print(f"{Colors.GREEN}A professional's hand lifted up the spirits of the ill. The nurse knows the deed.{Colors.RESET}")
 
                         bunker_state["Morality level"] += (cure_bonus + 5)
                         print_morality_level("+", (cure_bonus + 5))
@@ -622,10 +630,10 @@ def make_decision_about_infected(infected_people, resources):
                     break
 
                 else:
-                    print("Not enough meds in stock. Consider choosing another option")
+                    print(f"{Colors.RED}Not enough meds in stock. Consider choosing another option{Colors.RESET}")
                     continue
             case "2":
-                print(f"Hold on! Expelling an infected person from the bunker will affect your morality level! (-5%)\nAre you sure you want to do that?")
+                print(f"{Colors.YELLOW}Hold on! Expelling an infected person from the bunker will affect your morality level! (-5%)\nAre you sure you want to do that?{Colors.RESET}")
 
                 print("1. No (Go back)\n2. Yes (Confirm Expulsion)")
 
@@ -686,7 +694,7 @@ def make_decision_about_infected(infected_people, resources):
             case "3":
                 current_penalty = len(infected_people) * 5
 
-                print(f"Hold on! Expelling infected people from the bunker will drastically affect your morality level! (-{expel_penalty}%)\nAre you sure you want to do that?")
+                print(f"{Colors.YELLOW}Hold on! Expelling infected people from the bunker will drastically affect your morality level! (-{expel_penalty}%)\nAre you sure you want to do that?{Colors.RESET}")
                 print("1. No (Go back)\n2. Yes (Expel All)")
 
                 choice = input(">> ")
@@ -706,7 +714,7 @@ def make_decision_about_infected(infected_people, resources):
                 elif choice == "2":
 
                     print("You made your choice... You could hear the judgement in the air. The infected felt nothing but misery as they left.")
-                    print("Today was a really grim day.")
+                    print(f"{Colors.RED}Today was a really grim day.{Colors.RESET}")
 
                     for p_id in infected_people:
                         people.pop(p_id, None)
@@ -752,12 +760,12 @@ def check_air_filter(resources):
         match input(">> "):
             case "1":
                 if bunker_state['Air filter condition'] > 80:
-                    print("Filters are already in perfect condition!")
+                    print(f"{Colors.GREEN}Filters are already in perfect condition!{Colors.RESET}")
                 else:
                     repair_with_tools(resources)
             case "2":
                 if bunker_state['Air filter condition'] > 80:
-                    print("Filters are already in perfect condition!")
+                    print(f"{Colors.GREEN}Filters are already in perfect condition!{Colors.RESET}")
                 else:
                     repair_with_mechanic(resources)
             case "3":
@@ -768,13 +776,13 @@ def check_air_filter(resources):
 def repair_with_tools(resources):
 
     if bunker_state['Tools'] == 0:
-        print("You can't fix air filters with tools. You don't have any. Some newcomers might bring them, if you're lucky...")
+        print(f"{Colors.RED}You can't fix air filters with tools. You don't have any. Some newcomers might bring them, if you're lucky...{Colors.RESET}")
         return False
     else:
         bunker_state['Tools'] -= 1
         resources["Tools spent"] += 1
         bunker_state['Air filter condition'] = min(100, bunker_state['Air filter condition'] + 15)
-        print("Phew... Now that should be easier to breathe in our bunker!")
+        print(f"{Colors.GREEN}Phew... Now that should be easier to breathe in our bunker!{Colors.RESET}")
 
         print(f"Current air filter condition equals to {bunker_state['Air filter condition']}%")
         return True
@@ -856,7 +864,7 @@ def day_results(resources):
     bunker_state["Air filter condition"] -= 15
 
     print("Now that was an interesting day, wasn't it? Time to see what we've got")
-    print(f"DAY {day} RESULTS:")
+    print(f"{Colors.BOLD}DAY {day} RESULTS:{Colors.RESET}")
 
     print("-"*10)
 
@@ -874,9 +882,25 @@ def day_results(resources):
 
     print("-"*10)
 
-    print("Current bunker state:")
+    print(f"{Colors.BOLD}Current bunker state:{Colors.RESET}")
+
+    critical_thresholds = {
+        "Food": 5,
+        "Meds": 1,
+        "Tools": 0,
+        "Air filter condition": 25,
+        "Morality level": 25,
+        "Reputation": 30
+    }
+
     for key, value in bunker_state.items():
-        print(f"{key}: {value}")
+        threshold = critical_thresholds.get(key)
+        if threshold is not None and value <= threshold:
+            print(f"{Colors.RED}{key}: {value}{Colors.RESET}")
+        elif threshold is not None and value <= threshold * 2:
+            print(f"{Colors.YELLOW}{key}: {value}{Colors.RESET}")
+        else:
+            print(f"{Colors.GREEN}{key}: {value}{Colors.RESET}")
 
 def start_new_day():
 
@@ -903,7 +927,7 @@ def start_new_day():
         "Tools spent": 0
     }
 
-    print(f"\n=== DAY {day} / 10 ===")
+    print(f"\n{Colors.BOLD}=== DAY {day} / 10 ==={Colors.RESET}")
     print("New day brings new people to these gates... You shall determine their destiny.\n")
 
     new_visitors = morning(resources)
@@ -922,16 +946,16 @@ def start_new_day():
     have_botanist = any(person["Role"] == 'Botanist' for person in people.values())
 
     if random.randint(0, 100) < 70 and have_botanist:
-        print("By the end of the day, the botanist managed to grow up some food for our bunker. Not a grand meal, but that'll definitely do!")
-        print("Food: +2 units")
+        print(f"{Colors.GREEN}By the end of the day, the botanist managed to grow up some food for our bunker. Not a grand meal, but that'll definitely do!{Colors.RESET}")
+        print(f"{Colors.GREEN}Food: +2 units{Colors.RESET}")
         bunker_state["Food"] += 2
 
     have_musician = any(person["Role"] == 'Musician' for person in people.values())
 
     if random.randint(0, 100) < 50 and have_musician:
         print("The atmosphere in the bunker was grimmer than usual... Suddenly, a guitar was heard.")
-        print("Singing some of well-known songs, a musician managed to lift the spirits up. You could hear the laughter again.")
-        print("Morality level: +7")
+        print(f"{Colors.GREEN}Singing some of well-known songs, a musician managed to lift the spirits up. You could hear the laughter again.{Colors.RESET}")
+        print(f"{Colors.GREEN}Morality level: +7{Colors.RESET}")
         bunker_state["Morality level"] += 7
 
     if check_for_loss():
@@ -943,54 +967,54 @@ def check_for_loss():
 
     if day > 10:
         print(f"\n{Colors.GREEN}{Colors.BOLD}--- VICTORY! YOU SURVIVED 10 DAYS! ---{Colors.RESET}")
-        print("You managed to maintain order, manage resources, and keep everyone safe.")
-        print("Rescue teams have reached Bunker-42. You won!")
+        print(f"{Colors.GREEN}You managed to maintain order, manage resources, and keep everyone safe.{Colors.RESET}")
+        print(f"{Colors.GREEN}Rescue teams have reached Bunker-42. You won!{Colors.RESET}")
         return True
 
     have_policeman = any(person["Role"] == 'Policeman' for person in people.values())
 
     if bunker_state["Morality level"] <= 0:
         if have_policeman and random.randint(0,100) < 25:
-            print("Woah, woah! Your morality level dropped to zero or below!")
-            print("You were lucky to have a person from the police who managed to talk people out of the riot. Seems like it's only for a day...")
+            print(f"{Colors.YELLOW}Woah, woah! Your morality level dropped to zero or below!{Colors.RESET}")
+            print(f"{Colors.GREEN}You were lucky to have a person from the police who managed to talk people out of the riot. Seems like it's only for a day...{Colors.RESET}")
             return False
         else:
             print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER! ---{Colors.RESET}")
-            print("The people rose up against you and expelled you. Now, there is nothing but wasteland around you...")
+            print(f"{Colors.RED}The people rose up against you and expelled you. Now, there is nothing but wasteland around you...{Colors.RESET}")
             return True
 
     if bunker_state["Food"] <= 0:
         print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER! ---{Colors.RESET}")
-        print("Food supplies were completely exhausted. The people in the bunker died of starvation...")
+        print(f"{Colors.RED}Food supplies were completely exhausted. The people in the bunker died of starvation...{Colors.RESET}")
         return True
 
     if bunker_state["Air filter condition"] <= 0:
         print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER ---{Colors.RESET}")
-        print("The air filters failed completely. The bunker filled with toxic gas...")
+        print(f"{Colors.RED}The air filters failed completely. The bunker filled with toxic gas...{Colors.RESET}")
         return True
 
     for p_id, person in people.items():
         if person.get("Is infected?", False) and person.get("Days infected", 0) > 4:
             print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER ---{Colors.RESET}")
-            print(f"{person['Name']} had the infection for too long (> 4 days).")
-            print("The virus evolved and rapidly infected the entire bunker. No survivors remained...")
+            print(f"{Colors.RED}{person['Name']} had the infection for too long (> 4 days).{Colors.RESET}")
+            print(f"{Colors.RED}The virus evolved and rapidly infected the entire bunker. No survivors remained...{Colors.RESET}")
             return True
 
     if bunker_state["Reputation"] <= 0:
         print(f"\n{Colors.RED}{Colors.BOLD}--- GAME OVER ---{Colors.RESET}")
-        print("Word has spread far and wide: Bunker turns away the desperate.")
-        print("A coalition of raiders, tired of being denied, storms your gates...")
+        print(f"{Colors.RED}Word has spread far and wide: Bunker turns away the desperate.{Colors.RESET}")
+        print(f"{Colors.RED}A coalition of raiders, tired of being denied, storms your gates...{Colors.RESET}")
         return True
 
     return False
 
 bunker_state = {
-        "Food": 15,
+        "Food": 25,
         "Meds": 3,
         "Tools": 2,
         "Air filter condition": 100,
         "Morality level": 30,
-        "Reputation": 50
+        "Reputation": 70
     }
 
 penalty_for_expelling = True
@@ -1015,12 +1039,12 @@ def reset_game():
     global next_person_id, mechanic_used_today
 
     bunker_state = {
-        "Food": 15,
+        "Food": 25,
         "Meds": 3,
         "Tools": 2,
         "Air filter condition": 100,
         "Morality level": 30,
-        "Reputation": 50
+        "Reputation": 70
     }
 
     penalty_for_expelling = True
